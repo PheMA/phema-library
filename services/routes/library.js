@@ -50,7 +50,7 @@ var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
 
 // MongoDB configuration
 mongoose.connect('mongodb://localhost/phema-library', function(err, res) {
-//mongoose.connect('mongodb://phema:phema@ds031711.mongolab.com:31711/sophe-mongo', function(err, res) {
+
   if(err) {
     console.log('error connecting to MongoDB Database. ' + err);
   } else {
@@ -80,7 +80,6 @@ exports.index = function(req, res){
  * @param {Object} res HTTP response object.
  */
 exports.details = function(req, res){
-  //res.status(404).send({message: 'The API does not support this operation'});
   console.log("GET - /library/:id");
   return LibraryRepository.findOne({_id: req.params.id, deleted: false }, function(err, item) {
     if(!item) {
@@ -115,8 +114,6 @@ exports.add = function(req, res) {
     description: req.body.description,
     definition: req.body.definition,
   });
-
-  console.log(req.body);
 
   item.save(function(err) {
     if (err) {
@@ -175,6 +172,7 @@ exports.update = function(req, res) {
 };
 
 exports.delete = function(req, res) {
+  console.log("DELETE - /library/:id");
   return LibraryRepository.findById(req.params.id, function(err, item) {
     if (!item) {
       res.statusCode = 404;
