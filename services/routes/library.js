@@ -1,15 +1,77 @@
+/*
+Test sending items via:
+
+var xmlhttp = new XMLHttpRequest();
+xmlhttp.open("POST", "/api/library");
+xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+xmlhttp.send(JSON.stringify({name:"Test", description:"Test item"}));
+
+var xmlhttp = new XMLHttpRequest();
+xmlhttp.open("DELETE", "/api/library/54bd1c12f22d3d5b00e437d1");
+xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+xmlhttp.send();
+*/
+
 var request = require('request');
-var Library = require('../lib/library');
+var mongoose = require('mongoose');
+
+var Schema = mongoose.Schema;
+
+var LibraryItem = new Schema({
+  name: {
+    type: String,
+    require: true
+  },
+  description: {
+    type: String
+  },
+  definition: {
+    type: Schema.Types.Mixed
+  },
+  created: {
+    type: Date,
+    default: Date.now
+  },
+  modified: {
+    type: Date,
+    default: Date.now
+  },
+  deleted: {
+    type: Boolean,
+    default: false
+  }
+})
+
+function formatItemForReturn(item) {
+  return { id: item._id, name: item.name, description: item.description, definition: item.definition };
+}
+
+var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
+
+// MongoDB configuration
+mongoose.connect('mongodb://localhost/phema-library', function(err, res) {
+//mongoose.connect('mongodb://phema:phema@ds031711.mongolab.com:31711/sophe-mongo', function(err, res) {
+  if(err) {
+    console.log('error connecting to MongoDB Database. ' + err);
+  } else {
+    console.log('Connected to Database');
+  }
+});
 
 exports.index = function(req, res){
-  console.log("GET - /library");
-  var result = Library.index();
-  if (result && result.success) {
-    return res.status(200).send(result.list);
-  }
-  else {
-    return res.status(500).send({ error: 'Server error' });
-  }
+  LibraryRepository.find({deleted: false }, function(err, items) {
+    if (!err) {
+      var formattedList = [];
+      for (var index = 0; index < items.length; index++) {
+        formattedList.push(formatItemForReturn(items[index]));
+      }
+      return res.send(formattedList);
+    } else {
+      res.statusCode = 500;
+      console.log('Internal error(%d): %s',res.statusCode,err.message);
+    return res.send({ error: 'Server error' });
+    }
+  });
 };
 
 /**
@@ -18,19 +80,26 @@ exports.index = function(req, res){
  * @param {Object} res HTTP response object.
  */
 exports.details = function(req, res){
+  //res.status(404).send({message: 'The API does not support this operation'});
   console.log("GET - /library/:id");
-  var result = Library.details(req.params.id);
-  if (result.success) {
-    if (result.item) {
-      return res.status(200).send(result.item);
+  return LibraryRepository.findOne({_id: req.params.id, deleted: false }, function(err, item) {
+    if(!item) {
+      console.log('Not found');
+      res.statusCode = 404;
+      return res.send({ error: 'Not found' });
+    }
+
+    if (!err) {
+      console.log('Found');;
+      res.statusCode = 200;
+      return res.send(formatItemForReturn(item));
     }
     else {
-      return res.status(404).send({error: 'Not found'});
+      res.statusCode = 500;
+      console.log('Internal error(%d): %s', res.statusCode, err.message);
+      return res.send({ error: 'Server error' });
     }
-  }
-  else {
-    return res.status(500).send({ error: 'Server error' });
-  }
+  });
 };
 
 /**
@@ -40,13 +109,26 @@ exports.details = function(req, res){
  */
 exports.add = function(req, res) {
   console.log('POST - /library');
-  var result = Library.add(req.body);
-  if (result.success) {
-    return res.send(result.item);
-  }
-  else {
-    return res.status(500).send({ error: 'Server error' });
-  }
+
+  var item = new LibraryRepository({
+    name: req.body.name,
+    description: req.body.description,
+    definition: req.body.definition,
+  });
+
+  console.log(req.body);
+
+  item.save(function(err) {
+    if (err) {
+      console.log('Error while saving library item: ' + err);
+      res.send({ error:err });
+      return;
+    }
+    else {
+      console.log("Library item created");
+      return res.send(formatItemForReturn(item));
+    }
+  });
 };
 
 /**
@@ -56,18 +138,40 @@ exports.add = function(req, res) {
  */
 exports.update = function(req, res) {
   console.log("PUT - /library/:id");
-  var result = Library.add(req.body);
-  if (result.success) {
-    if (result.item) {
-      return res.status(200).send(result.item);
+  return LibraryRepository.findById(req.params.id, function(err, item) {
+    if (!item) {
+      res.statusCode = 404;
+      return res.send({ error: 'Not found' });
     }
-    else {
-      return res.status(404).send({error: 'Not found'});
+
+    if (req.body.name != null) {
+      item.name = req.body.name;
     }
-  }
-  else {
-    return res.status(500).send({ error: 'Server error' });
-  }
+    if (req.body.description != null) {
+      item.description = req.body.description;
+    }
+
+    if (req.body.definition != null) {
+      item.definition = req.body.definition;
+    }
+
+    return item.save(function(err) {
+      if(!err) {
+        console.log('Updated');
+        return res.send(formatItemForReturn(item));
+      } else {
+        if(err.name == 'ValidationError') {
+          res.statusCode = 400;
+          res.send({ error: 'Validation error' });
+        } else {
+          res.statusCode = 500;
+          res.send({ error: 'Server error' });
+        }
+        console.log('Internal error(%d): %s',res.statusCode,err.message);
+      }
+      res.send(item);
+    });
+  });
 };
 
 exports.delete = function(req, res) {

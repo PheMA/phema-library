@@ -12,7 +12,6 @@ app.use(logger());
 // parse application/json
 app.use(bodyParser.json());
 
-// Routing examples at: https://github.com/strongloop/express/tree/master/examples/route-separation
 app.get('/library', library.index);
 app.get('/library/:id', library.details);
 app.post('/library', library.add);
