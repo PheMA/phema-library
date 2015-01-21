@@ -49,8 +49,7 @@ function formatItemForReturn(item) {
 var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
 
 // MongoDB configuration
-mongoose.connect('mongodb://localhost/phema-library', function(err, res) {
-
+mongoose.connect(process.env.MONGOLAB_URI, function(err, res) {
   if(err) {
     console.log('error connecting to MongoDB Database. ' + err);
   } else {
