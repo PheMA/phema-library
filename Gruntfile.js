@@ -27,16 +27,17 @@ module.exports = function (grunt) {
 
   // Configurable paths for the application
   var appConfig = {
-    app: require('./bower.json').appPath || 'app',
+    //app: require('./bower.json').appPath || 'app',
+    app: 'app',
     dist: 'dist'
   };
 
   // Identify the target environment (we default to development)
-  var target = grunt.option('target') || 'local';
+  //var target = grunt.option('target') || 'local';
 
   // Read the appropriate environment settings.  These are used in the replace task.
-  var filename = target + '.json';
-  var settings = grunt.file.readJSON('./config/' + filename, 'utf8');
+  //var filename = target + '.json';
+  //var settings = grunt.file.readJSON('./config/' + filename, 'utf8');
 
   // Define the configuration for all the tasks
   grunt.initConfig({
@@ -462,30 +463,6 @@ module.exports = function (grunt) {
       unit: {
         configFile: 'test/karma.conf.js',
         singleRun: false
-      }
-    },
-
-    replace: {
-      dist: {
-        options: {
-          patterns: [
-            {
-              match: 'environment',
-              replacement: settings.environment
-            },
-            {
-              match: 'dataServiceBaseUrl',
-              replacement: settings.dataServiceBaseUrl
-            },
-            {
-              match: 'libraryBaseUrl',
-              replacement: settings.libraryBaseUrl
-            }
-          ]
-        },
-        files: [
-          {expand: true, flatten: true, src: ['dist/scripts/*.js'], dest: 'dist/scripts'}
-        ]
       }
     },
 

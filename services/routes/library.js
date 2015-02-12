@@ -17,10 +17,19 @@ var mongoose = require('mongoose');
 
 var Schema = mongoose.Schema;
 
+function nameValidator (v) {
+  if (!v || typeof v === 'undefined') {
+    return false;
+  }
+
+  return v.length >= 4;
+};
+
 var LibraryItem = new Schema({
   name: {
     type: String,
-    require: true
+    require: true,
+    validate: [nameValidator, 'The name must be at least 4 characters long']
   },
   description: {
     type: String
@@ -32,18 +41,36 @@ var LibraryItem = new Schema({
     type: Date,
     default: Date.now
   },
+  createdBy: {
+    type: String
+  },
   modified: {
-    type: Date,
-    default: Date.now
+    type: Date
+  },
+  modifiedBy: {
+    type: String
   },
   deleted: {
-    type: Boolean,
-    default: false
+    type: Date
+  },
+  deletedBy: {
+    type: String
   }
 })
 
 function formatItemForReturn(item) {
-  return { id: item._id, name: item.name, description: item.description, definition: item.definition };
+  return {
+    id: item._id.toHexString(),
+    name: item.name,
+    description: item.description,
+    definition: item.definition,
+    created: item.created,
+    createdBy: item.createdBy,
+    modified: item.modified,
+    modifiedBy: item.modifiedBy,
+    deleted: item.deleted,
+    deletedBy: item.deletedBy
+  };
 }
 
 var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
@@ -58,12 +85,13 @@ mongoose.connect(process.env.MONGOLAB_URI, function(err, res) {
 });
 
 exports.index = function(req, res){
-  LibraryRepository.find({deleted: false }, function(err, items) {
+  LibraryRepository.find({deleted: undefined }, function(err, items) {
     if (!err) {
       var formattedList = [];
       for (var index = 0; index < items.length; index++) {
         formattedList.push(formatItemForReturn(items[index]));
       }
+      res.statusCode = 200;
       return res.send(formattedList);
     } else {
       res.statusCode = 500;
@@ -80,7 +108,7 @@ exports.index = function(req, res){
  */
 exports.details = function(req, res){
   console.log("GET - /library/:id");
-  return LibraryRepository.findOne({_id: req.params.id, deleted: false }, function(err, item) {
+  return LibraryRepository.findOne({_id: req.params.id, deleted: undefined }, function(err, item) {
     if(!item) {
       console.log('Not found');
       res.statusCode = 404;
@@ -113,15 +141,23 @@ exports.add = function(req, res) {
     description: req.body.description,
     definition: req.body.definition,
   });
+  if (req.body.createdBy !== null && (typeof req.body.createdBy) !== 'undefined') {
+    item.createdBy = req.body.createdBy;
+  }
+  else {
+    item.createdBy = '(Unknown)';
+  }
 
   item.save(function(err) {
     if (err) {
       console.log('Error while saving library item: ' + err);
+      res.statusCode = 400;
       res.send({ error:err });
       return;
     }
     else {
       console.log("Library item created");
+      res.statusCode = 200;
       return res.send(formatItemForReturn(item));
     }
   });
@@ -140,32 +176,39 @@ exports.update = function(req, res) {
       return res.send({ error: 'Not found' });
     }
 
-    if (req.body.name != null) {
+    if (req.body.name !== null && (typeof req.body.name) !== 'undefined') {
       item.name = req.body.name;
     }
-    if (req.body.description != null) {
+    if (req.body.description !== null && (typeof req.body.description) !== 'undefined') {
       item.description = req.body.description;
     }
-
-    if (req.body.definition != null) {
+    if (req.body.definition !== null && (typeof req.body.definition) !== 'undefined') {
       item.definition = req.body.definition;
     }
+    if (req.body.modifiedBy !== null && (typeof req.body.modifiedBy) !== 'undefined') {
+      item.modifiedBy = req.body.modifiedBy;
+    }
+    else {
+      item.modifiedBy = '(Unknown)';
+    }
+    item.modified = Date.now();
 
     return item.save(function(err) {
       if(!err) {
         console.log('Updated');
+        res.statusCode = 200;
         return res.send(formatItemForReturn(item));
       } else {
+        console.log('Internal error(%d): %s',res.statusCode,err.message);
+
         if(err.name == 'ValidationError') {
           res.statusCode = 400;
-          res.send({ error: 'Validation error' });
+          return res.send({ error: 'Validation error' });
         } else {
           res.statusCode = 500;
-          res.send({ error: 'Server error' });
+          return res.send({ error: 'Server error' });
         }
-        console.log('Internal error(%d): %s',res.statusCode,err.message);
       }
-      res.send(item);
     });
   });
 };
@@ -178,11 +221,18 @@ exports.delete = function(req, res) {
       return res.send({ error: 'Not found' });
     }
 
-    item.deleted = true;
+    item.deleted = Date.now();
+    if (req.body.deletedBy !== null && (typeof req.body.deletedBy) !== 'undefined') {
+      item.deletedBy = req.body.deletedBy;
+    }
+    else {
+      item.deletedBy = '(Unknown)';
+    }
 
     return item.save(function(err) {
       if(!err) {
         console.log('Deleted');
+        res.statusCode = 204;
         return res.send({ status: 'OK' });
       } else {
         if(err.name == 'ValidationError') {
