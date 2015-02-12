@@ -75,7 +75,7 @@ function formatItemForReturn(item) {
 var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
 
 // MongoDB configuration
-mongoose.connect(process.env.MONGOLAB_URI, function(err) {
+mongoose.connect(process.env.MONGO_CONNECTION, function(err) {
   if(err) {
     console.log('error connecting to MongoDB Database. ' + err);
   } else {

@@ -32,7 +32,7 @@ module.exports = function (grunt) {
       },
       jsTest: {
         files: ['services/{,*/}*.js'],
-        tasks: ['newer:jshint:test']
+        tasks: ['newer:jshint:test', 'jasmineNode']
       },
       gruntfile: {
         files: ['Gruntfile.js']

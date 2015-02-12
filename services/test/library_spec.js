@@ -5,12 +5,12 @@
 var DatabaseCleaner = require('database-cleaner');
 var databaseCleaner = new DatabaseCleaner('mongodb');
 var connect = require('mongodb').connect;
-process.env.MONGOLAB_URI = 'mongodb://localhost/sophe-library-test';
+process.env.MONGO_CONNECTION = 'mongodb://localhost/sophe-library-test';
 var library = require('../routes/library.js');
 
 var cleaned = false;
 var resetDatabase = function() {
-  connect(process.env.MONGOLAB_URI, function(err, db) {
+  connect(process.env.MONGO_CONNECTION, function(err, db) {
     databaseCleaner.clean(db, function() {
       db.close();
       cleaned = true;
@@ -107,6 +107,64 @@ describe('library', function () {
       waitsFor(sendWait, 1000);
       runs(function(){
         expect(response.data).toEqual({});
+      });
+    });
+  });
+
+  describe('details', function() {
+    it('retrieves the appropriate item', function() {
+      var itemId = null;
+      runs(function(){
+        request.body = {name: 'Test', description: 'Test', definition: 'test', createdBy: 'User'};
+        library.add(request, response);
+      });
+      waitsFor(sendWait, 1000);
+      runs(function(){
+        itemId = response.data.id;
+        initialize();
+        request.params = {id: itemId};
+        library.details(request, response);
+      });
+      waitsFor(sendWait, 1000);
+      runs(function() {
+        expect(response.statusCode).toEqual(200);
+        expect(response.data.id).toEqual(itemId);
+        expect(response.data.name).toEqual('Test');
+        expect(response.data.description).toEqual('Test');
+        expect(response.data.definition).toEqual('test');
+        expect(response.data.createdBy).toEqual('User');
+
+        initialize();
+        request.body = {name: 'Test 2', description: 'Test 2', definition: 'test 2', createdBy: 'User 2'};
+        library.add(request, response);
+      });
+      waitsFor(sendWait, 1000);
+      runs(function(){
+        itemId = response.data.id;
+        initialize();
+        request.params = {id: itemId};
+        library.details(request, response);
+      });
+      waitsFor(sendWait, 1000);
+      runs(function(){
+        expect(response.statusCode).toEqual(200);
+        expect(response.data.id).toEqual(itemId);
+        expect(response.data.name).toEqual('Test 2');
+        expect(response.data.description).toEqual('Test 2');
+        expect(response.data.definition).toEqual('test 2');
+        expect(response.data.createdBy).toEqual('User 2');
+      });
+    });
+
+    it('returns an error for an unknown item', function() {
+      runs(function() {
+        initialize();
+        request.params = {id: 'thisisinvalid'};
+        library.details(request, response);
+      });
+      waitsFor(sendWait, 1000);
+      runs(function(){
+        expect(response.statusCode).toEqual(404);
       });
     });
   });
