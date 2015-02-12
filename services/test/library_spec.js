@@ -1,5 +1,7 @@
 'use strict';
 
+/* globals it, describe, expect, beforeEach, afterEach, spyOn, runs, waitsFor */
+
 var DatabaseCleaner = require('database-cleaner');
 var databaseCleaner = new DatabaseCleaner('mongodb');
 var connect = require('mongodb').connect;
@@ -31,7 +33,7 @@ var initialize = function() {
     send: function(data) { this.data = data; }
   };
   spyOn(response, 'send').andCallThrough();
-}
+};
 
 describe('library', function () {
   beforeEach(function() {
@@ -42,7 +44,7 @@ describe('library', function () {
     resetDatabase();
     waitsFor(function() { return cleaned; }, 3000);
     cleaned = false;
-  })
+  });
 
   describe('index', function() {
     it('returns an empty collection when there are no items', function() {
@@ -53,7 +55,7 @@ describe('library', function () {
       runs(function(){
         expect(response.statusCode).toEqual(200);
         expect(response.data).toEqual({});
-      })
+      });
     });
 
     // We supplement other index tests below, such as with calling index after
@@ -86,7 +88,7 @@ describe('library', function () {
         expect(response.data[0].modifiedBy).toEqual(undefined);
         expect(response.data[0].deleted).toEqual(undefined);
         expect(response.data[0].deletedBy).toEqual(undefined);
-      })
+      });
     });
 
     it('rejects an empty item', function() {
@@ -199,7 +201,6 @@ describe('library', function () {
     });
 
     it('returns an error for an unknown item', function() {
-      var itemId = '';
       runs(function() {
         initialize();
         request.params = {id: 'thisisinvalid'};
@@ -242,7 +243,6 @@ describe('library', function () {
     });
 
     it('returns an error for an unknown item', function() {
-      var itemId = '';
       runs(function() {
         initialize();
         request.params = {id: 'thisisinvalid'};

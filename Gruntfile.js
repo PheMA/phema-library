@@ -31,8 +31,8 @@ module.exports = function (grunt) {
         tasks: ['wiredep']
       },
       jsTest: {
-        files: ['test/spec/{,*/}*.js'],
-        tasks: ['newer:jshint:test', 'karma']
+        files: ['services/{,*/}*.js'],
+        tasks: ['newer:jshint:test']
       },
       gruntfile: {
         files: ['Gruntfile.js']
@@ -86,7 +86,7 @@ module.exports = function (grunt) {
         options: {
           jshintrc: 'services/test/.jshintrc'
         },
-        src: ['test/spec/{,*/}*.js']
+        src: ['services/{,*/}*.js']
       }
     },
 

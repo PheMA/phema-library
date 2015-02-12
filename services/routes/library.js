@@ -12,7 +12,6 @@ xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 xmlhttp.send();
 */
 
-var request = require('request');
 var mongoose = require('mongoose');
 
 var Schema = mongoose.Schema;
@@ -23,7 +22,7 @@ function nameValidator (v) {
   }
 
   return v.length >= 4;
-};
+}
 
 var LibraryItem = new Schema({
   name: {
@@ -56,7 +55,7 @@ var LibraryItem = new Schema({
   deletedBy: {
     type: String
   }
-})
+});
 
 function formatItemForReturn(item) {
   return {
@@ -76,7 +75,7 @@ function formatItemForReturn(item) {
 var LibraryRepository = mongoose.model('LibraryItem', LibraryItem);
 
 // MongoDB configuration
-mongoose.connect(process.env.MONGOLAB_URI, function(err, res) {
+mongoose.connect(process.env.MONGOLAB_URI, function(err) {
   if(err) {
     console.log('error connecting to MongoDB Database. ' + err);
   } else {
@@ -116,7 +115,7 @@ exports.details = function(req, res){
     }
 
     if (!err) {
-      console.log('Found');;
+      console.log('Found');
       res.statusCode = 200;
       return res.send(formatItemForReturn(item));
     }
@@ -201,7 +200,7 @@ exports.update = function(req, res) {
       } else {
         console.log('Internal error(%d): %s',res.statusCode,err.message);
 
-        if(err.name == 'ValidationError') {
+        if(err.name === 'ValidationError') {
           res.statusCode = 400;
           return res.send({ error: 'Validation error' });
         } else {
@@ -235,7 +234,7 @@ exports.delete = function(req, res) {
         res.statusCode = 204;
         return res.send({ status: 'OK' });
       } else {
-        if(err.name == 'ValidationError') {
+        if(err.name === 'ValidationError') {
           res.statusCode = 400;
           return res.send({ error: 'Validation error' });
         } else {
