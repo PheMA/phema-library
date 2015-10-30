@@ -7,7 +7,7 @@ var library = require('./services/routes/library');
 
 module.exports = app;
 
-app.use(logger());
+app.use(logger('combined'));
 
 // parse application/json
 app.use(bodyParser.json());
@@ -16,6 +16,6 @@ app.get('/library', library.index);
 app.get('/library/:id', library.details);
 app.post('/library', library.add);
 app.put('/library/:id', library.update);
-app.del('/library/:id', library.delete);
+app.delete('/library/:id', library.delete);
 
 app.listen(process.env.PORT || 8082);
