@@ -14,7 +14,7 @@ xmlhttp.send();
 
 var mongoose = require('mongoose');
 
-var MONGO_CONNECTION = 'mongodb://localhost/sophe-library';
+var MONGO_CONNECTION = 'mongodb://localhost/phema-library';
 
 var Schema = mongoose.Schema;
 
