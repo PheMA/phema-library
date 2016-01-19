@@ -18,17 +18,20 @@ module.exports = function (grunt) {
   // Unit testing for Node.js code
   grunt.loadNpmTasks('grunt-jasmine-node');
 
-  // Generate documentation
-  grunt.loadNpmTasks('grunt-ngdocs');
+  // For Express server
+  grunt.loadNpmTasks('grunt-express-server');
 
   // Define the configuration for all the tasks
   grunt.initConfig({
 
     // Watches files for changes and runs tasks based on the changed files
     watch: {
-      bower: {
-        files: ['bower.json'],
-        tasks: ['wiredep']
+      express: {
+        files:  [ '**/*.js' ],
+        tasks:  [ 'express:dev' ],
+        options: {
+          spawn: false // for grunt-contrib-watch v0.5.0+, "nospawn: true" for lower versions. Without this option specified express won't be reloaded
+        }
       },
       jsTest: {
         files: ['services/{,*/}*.js'],
@@ -40,34 +43,22 @@ module.exports = function (grunt) {
     },
 
     // The actual grunt server settings
-    connect: {
-      options: {
-        port: 9000,
-        // Change this to '0.0.0.0' to access the server from outside.
-        hostname: 'localhost',
-        livereload: 35729
-      },
-      test: {
+    express: {
         options: {
-          port: 9001,
-          middleware: function (connect) {
-            return [
-              connect.static('.tmp'),
-              connect.static('test'),
-              connect().use(
-                '/bower_components',
-                connect.static('./bower_components')
-              ),
-            ];
+          // Override defaults here
+          // Override node env's PORT
+          port: 9000,
+        },
+        dev: {
+          options: {
+            script: 'library.js'
+          }
+        },
+        test: {
+          options: {
+            script: 'library.js'
           }
         }
-      },
-      dist: {
-        options: {
-          open: true,
-          base: '<%= yeoman.dist %>'
-        }
-      }
     },
 
     // Make sure code styles are up to par and there are no obvious mistakes
@@ -105,13 +96,10 @@ module.exports = function (grunt) {
     // Run some tasks in parallel to speed up the build process
     concurrent: {
       server: [
-        'compass:server'
       ],
       test: [
-        'compass'
       ],
       dist: [
-        'compass:dist'
       ]
     },
 
@@ -140,10 +128,7 @@ module.exports = function (grunt) {
 
     grunt.task.run([
       'clean:server',
-      'wiredep',
-      'concurrent:server',
-      'autoprefixer',
-      'connect:livereload',
+      'express:dev',
       'watch'
     ]);
   });
