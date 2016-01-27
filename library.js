@@ -13,6 +13,7 @@ app.use(logger('combined'));
 app.use(bodyParser.json());
 
 app.get('/library', library.index);
+app.get('/library/repositories', library.repositories);
 app.get('/library/:id', library.details);
 app.post('/library', library.add);
 app.put('/library/:id', library.update);

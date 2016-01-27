@@ -17,6 +17,7 @@ var mongoose = require('mongoose');
 var MONGO_CONNECTION = 'mongodb://localhost/phema-library';
 
 var Schema = mongoose.Schema;
+var request = require('request');
 
 function nameValidator (v) {
   if (!v || typeof v === 'undefined') {
@@ -56,6 +57,9 @@ var LibraryItem = new Schema({
   },
   deletedBy: {
     type: String
+  },
+  phekb: {
+    type: Boolean
   }
 });
 
@@ -70,7 +74,8 @@ function formatItemForReturn(item) {
     modified: item.modified,
     modifiedBy: item.modifiedBy,
     deleted: item.deleted,
-    deletedBy: item.deletedBy
+    deletedBy: item.deletedBy,
+    phekb: item.phekb
   };
 }
 
@@ -84,6 +89,32 @@ mongoose.connect(MONGO_CONNECTION, function(err) {
     console.log('Connected to Database');
   }
 });
+
+function saveToPhekb(item)
+{
+  // If phekb save to phekb 
+  if (item.phekb)
+  {
+    var id = 0;
+    var phekb_url = 'http://local.phekb.org/phema-author/ws/save';
+    if (item._id)
+    {
+      id = item._id.toHexString();
+    }
+    // It is possible that phekb initiated the authoring , in which case , we will have an nid in the item
+    // We need to send this back to phekb so it can update 
+    var nid = 0; // phekb's id 
+    if (item.nid ) { nid = item.nid; }
+    var phekb_data = {name: item.name, description: item.description, definition: item.definition, id: id , nid: nid};
+  
+    request.post({url: phekb_url, formData:phekb_data }, function (error, response, body) {
+      //console.log(response);
+      if (!error && response.statusCode == 200) {
+        console.log(body) // Show the json returned
+      }
+    });
+  }
+}
 
 exports.index = function(req, res){
   LibraryRepository.find({deleted: undefined }, function(err, items) {
@@ -137,10 +168,14 @@ exports.details = function(req, res){
 exports.add = function(req, res) {
   console.log('POST - /library');
 
+  console.log(req.body);
+  console.log(req.body.phekb);
   var item = new LibraryRepository({
     name: req.body.name,
     description: req.body.description,
     definition: req.body.definition,
+    phekb: req.body.phekb
+    
   });
   if (req.body.createdBy !== null && (typeof req.body.createdBy) !== 'undefined') {
     item.createdBy = req.body.createdBy;
@@ -148,6 +183,7 @@ exports.add = function(req, res) {
   else {
     item.createdBy = '(Unknown)';
   }
+
 
   item.save(function(err) {
     if (err) {
@@ -158,6 +194,12 @@ exports.add = function(req, res) {
     }
     else {
       console.log("Library item created");
+      // If phekb save to phekb 
+      if (item.phekb)
+      {
+        saveToPhekb(item);
+      }
+
       res.statusCode = 200;
       return res.send(formatItemForReturn(item));
     }
@@ -197,6 +239,11 @@ exports.update = function(req, res) {
     return item.save(function(err) {
       if(!err) {
         console.log('Updated');
+         // If phekb save to phekb 
+        if (item.phekb)
+        {
+          saveToPhekb(item);
+        }
         res.statusCode = 200;
         return res.send(formatItemForReturn(item));
       } else {
@@ -249,3 +296,11 @@ exports.delete = function(req, res) {
     });
   });
 };
+exports.repositories = function(req, res){
+  var repos = { phekb: 'Save to PheKB.org phenotype', mycustom: "Some other Custom Repo" };
+  res.send(repos);  
+};
+
+/* new_from_phekb -- If editing your phenotype on phekb, You may want to launch the other tool to author it
+ * So we have to save it and then return id for phekb 
+ */
