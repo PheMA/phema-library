@@ -75,7 +75,9 @@ function formatItemForReturn(item) {
     modifiedBy: item.modifiedBy,
     deleted: item.deleted,
     deletedBy: item.deletedBy,
-    phekb: item.phekb
+    phekb: item.phekb,
+    phekb_id: item.phekb_id,
+    user : item.user
   };
 }
 
@@ -104,12 +106,19 @@ function saveToPhekb(item)
     // It is possible that phekb initiated the authoring , in which case , we will have an nid in the item
     // We need to send this back to phekb so it can update 
     var nid = 0; // phekb's id 
-    if (item.nid ) { nid = item.nid; }
+    if (item.phekb_id ) { nid = item.phekb_id; }
     var phekb_data = {name: item.name, description: item.description, definition: item.definition, id: id , nid: nid};
   
     request.post({url: phekb_url, formData:phekb_data }, function (error, response, body) {
       //console.log(response);
       if (!error && response.statusCode == 200) {
+        // Save the phekb id 
+        item.phekb_id = body.nid; 
+        item.user = body.user;
+        item.save(function(err) {
+          if(!err) { return item; } 
+          else { console.log("Error saving phekb return : " + err); }
+        });
         console.log(body) // Show the json returned
       }
     });
@@ -297,7 +306,10 @@ exports.delete = function(req, res) {
   });
 };
 exports.repositories = function(req, res){
-  var repos = { phekb: 'Save to PheKB.org phenotype', mycustom: "Some other Custom Repo" };
+  var repos = { repos: [
+      {name: 'phekb', description: 'Save to PheKB.org'}
+      
+  ]};
   res.send(repos);  
 };
 
