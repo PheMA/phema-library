@@ -60,6 +60,12 @@ var LibraryItem = new Schema({
   },
   phekb: {
     type: Boolean
+  },
+  external: {
+    type: Schema.Types.Mixed
+  },
+  user: { 
+    type: Schema.Types.Mixed
   }
 });
 
@@ -77,7 +83,8 @@ function formatItemForReturn(item) {
     deletedBy: item.deletedBy,
     phekb: item.phekb,
     phekb_id: item.phekb_id,
-    user : item.user
+    user : item.user,
+    external: item.external
   };
 }
 
@@ -95,8 +102,7 @@ mongoose.connect(MONGO_CONNECTION, function(err) {
 function saveToPhekb(item)
 {
   // If phekb save to phekb 
-  if (item.phekb)
-  {
+  
     var id = 0;
     var phekb_url = 'http://local.phekb.org/phema-author/ws/save';
     if (item._id)
@@ -106,23 +112,29 @@ function saveToPhekb(item)
     // It is possible that phekb initiated the authoring , in which case , we will have an nid in the item
     // We need to send this back to phekb so it can update 
     var nid = 0; // phekb's id 
-    if (item.phekb_id ) { nid = item.phekb_id; }
-    var phekb_data = {name: item.name, description: item.description, definition: item.definition, id: id , nid: nid};
-  
+    var uid = 0;
+    if (item.external ) { nid = item.external.nid;  uid = item.external.uid};
+
+    var phekb_data = {name: item.name, description: item.description, id: id , nid: nid, uid: uid};
+    console.log("posting to phekb save ", phekb_data);
     request.post({url: phekb_url, formData:phekb_data }, function (error, response, body) {
       //console.log(response);
       if (!error && response.statusCode == 200) {
-        // Save the phekb id 
-        item.phekb_id = body.nid; 
-        item.user = body.user;
-        item.save(function(err) {
-          if(!err) { return item; } 
-          else { console.log("Error saving phekb return : " + err); }
-        });
-        console.log(body) // Show the json returned
+        // Save the phekb nid if this is the first time saving
+        if (!item.external.nid)
+        {
+
+          item.external.nid  = body.nid; 
+          item.save(function(err) {
+            if(!err) { return item; } 
+            else { console.log("Error saving phekb return nid : " + err); }
+          });
+        }
       }
+      
+      console.log(body) // Show the json returned
     });
-  }
+  
 }
 
 exports.index = function(req, res){
@@ -176,22 +188,41 @@ exports.details = function(req, res){
  */
 exports.add = function(req, res) {
   console.log('POST - /library');
-
   console.log(req.body);
-  console.log(req.body.phekb);
   var item = new LibraryRepository({
     name: req.body.name,
-    description: req.body.description,
-    definition: req.body.definition,
-    phekb: req.body.phekb
-    
+   
   });
+  if (req.body.phekb)
+  {
+    item.phekb = req.body.phekb;
+  }
+  if (req.body.description)
+  {
+    item.description = req.body.description;
+  }
+  if (req.body.definition)
+  {
+    item.definition = req.body.definition;
+    
+  }
+  if (req.body.external)
+  {
+    item.external = req.body.external;
+    
+  }
+  if (req.body.user)
+  {
+    item.user = req.body.user;
+  }
+  
   if (req.body.createdBy !== null && (typeof req.body.createdBy) !== 'undefined') {
     item.createdBy = req.body.createdBy;
   }
   else {
     item.createdBy = '(Unknown)';
   }
+  console.log("saving item ", item);
 
 
   item.save(function(err) {
@@ -251,7 +282,7 @@ exports.update = function(req, res) {
          // If phekb save to phekb 
         if (item.phekb)
         {
-          saveToPhekb(item);
+          //saveToPhekb(item);
         }
         res.statusCode = 200;
         return res.send(formatItemForReturn(item));
