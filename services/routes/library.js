@@ -18,6 +18,9 @@ var MONGO_CONNECTION = 'mongodb://localhost/phema-library';
 
 var Schema = mongoose.Schema;
 var request = require('request');
+//var phekb_url = 'http://local.phekb.org';
+var phekb_url = 'https://phekb.org';
+
 
 function nameValidator (v) {
   if (!v || typeof v === 'undefined') {
@@ -58,14 +61,14 @@ var LibraryItem = new Schema({
   deletedBy: {
     type: String
   },
-  phekb: {
-    type: Boolean
-  },
   external: {
     type: Schema.Types.Mixed
   },
   user: { 
     type: Schema.Types.Mixed
+  },
+  image: {
+    type: String
   }
 });
 
@@ -81,10 +84,10 @@ function formatItemForReturn(item) {
     modifiedBy: item.modifiedBy,
     deleted: item.deleted,
     deletedBy: item.deletedBy,
-    phekb: item.phekb,
-    phekb_id: item.phekb_id,
+    image: item.image,
     user : item.user,
     external: item.external
+    
   };
 }
 
@@ -99,12 +102,12 @@ mongoose.connect(MONGO_CONNECTION, function(err) {
   }
 });
 
-function saveToPhekb(item)
+function saveToPhekb(item, res)
 {
   // If phekb save to phekb 
   
     var id = 0;
-    var phekb_url = 'http://local.phekb.org/phema-author/ws/save';
+    var phekb_save_url = phekb_url + '/phema-author/ws/save';
     if (item._id)
     {
       id = item._id.toHexString();
@@ -113,26 +116,43 @@ function saveToPhekb(item)
     // We need to send this back to phekb so it can update 
     var nid = 0; // phekb's id 
     var uid = 0;
-    if (item.external ) { nid = item.external.nid;  uid = item.external.uid};
+    if (!item.external ) { 
+      item.external = {nid : 0 , uid : 0, url: ''};
+    }
 
-    var phekb_data = {name: item.name, description: item.description, id: id , nid: nid, uid: uid};
-    console.log("posting to phekb save ", phekb_data);
-    request.post({url: phekb_url, formData:phekb_data }, function (error, response, body) {
-      //console.log(response);
-      if (!error && response.statusCode == 200) {
-        // Save the phekb nid if this is the first time saving
-        if (!item.external.nid)
-        {
 
-          item.external.nid  = body.nid; 
-          item.save(function(err) {
-            if(!err) { return item; } 
-            else { console.log("Error saving phekb return nid : " + err); }
-          });
-        }
+    var phekb_data = {name: item.name, description: item.description, id: id , nid: item.external.nid, uid: item.external.uid};
+    
+    if (item.image) phekb_data.image = item.image;
+
+    
+    request.post({url: phekb_save_url, formData:phekb_data }, function (error, response, body) {
+      console.log(body);
+      try {
+        body = JSON.parse(body);
+      } catch(e) {
+        console.log("error parsing phekb response to saving phenotype ", e);
       }
-      
-      console.log(body) // Show the json returned
+     
+      if (!error && response.statusCode == 200) {
+        console.log('returned save phekb ' , body);
+        // Save the phekb nid and url and such 
+        item.external.nid  = body.nid; 
+        item.external.uid = body.user.uid;
+        item.external.url = phekb_url + '/phenotype/'+item.external.nid;
+        item.save(function(err) {
+          if(!err) { 
+           res.statusCode = 200;
+           res.send(formatItemForReturn(item));
+          } 
+          else { 
+            console.log("Error saving phekb return nid : " + err);
+            res.statusCode = 400;
+            res.send({ error:err });
+          }
+        });
+        
+      }
     });
   
 }
@@ -169,8 +189,8 @@ exports.details = function(req, res){
     }
 
     if (!err) {
-      console.log('Found');
       res.statusCode = 200;
+      console.log(item.definition);
       return res.send(formatItemForReturn(item));
     }
     else {
@@ -188,7 +208,6 @@ exports.details = function(req, res){
  */
 exports.add = function(req, res) {
   console.log('POST - /library');
-  console.log(req.body);
   var item = new LibraryRepository({
     name: req.body.name,
    
@@ -215,6 +234,10 @@ exports.add = function(req, res) {
   {
     item.user = req.body.user;
   }
+  if (req.body.image)
+  {
+    item.image = req.body.image;
+  }
   
   if (req.body.createdBy !== null && (typeof req.body.createdBy) !== 'undefined') {
     item.createdBy = req.body.createdBy;
@@ -222,10 +245,9 @@ exports.add = function(req, res) {
   else {
     item.createdBy = '(Unknown)';
   }
-  console.log("saving item ", item);
-
 
   item.save(function(err) {
+    console.log("item saved ", item.definition);
     if (err) {
       console.log('Error while saving library item: ' + err);
       res.statusCode = 400;
@@ -234,14 +256,7 @@ exports.add = function(req, res) {
     }
     else {
       console.log("Library item created");
-      // If phekb save to phekb 
-      if (item.phekb)
-      {
-        saveToPhekb(item);
-      }
-
-      res.statusCode = 200;
-      return res.send(formatItemForReturn(item));
+      saveToPhekb(item, res);
     }
   });
 };
@@ -274,18 +289,28 @@ exports.update = function(req, res) {
     else {
       item.modifiedBy = '(Unknown)';
     }
+    if (req.body.external)
+    {
+      item.external = req.body.external;
+      
+    }
+    if (req.body.user)
+    {
+      item.user = req.body.user;
+    }
+    if (req.body.image)
+    {
+      item.image = req.body.image;
+    }
     item.modified = Date.now();
 
     return item.save(function(err) {
       if(!err) {
         console.log('Updated');
-         // If phekb save to phekb 
-        if (item.phekb)
-        {
-          //saveToPhekb(item);
-        }
-        res.statusCode = 200;
-        return res.send(formatItemForReturn(item));
+        console.log("updated : " , item.definition);
+        saveToPhekb(item,res);
+
+      
       } else {
         console.log('Internal error(%d): %s',res.statusCode,err.message);
 

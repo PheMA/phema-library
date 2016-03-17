@@ -9,8 +9,8 @@ module.exports = app;
 
 app.use(logger('combined'));
 
-// parse application/json
-app.use(bodyParser.json());
+// parse application/json, allow large requests (required for saving image of phenotype )
+app.use(bodyParser.json({limit: '50mb'}));
 
 app.get('/library', library.index);
 app.get('/library/repositories', library.repositories);
