@@ -1,6 +1,6 @@
 {
   "name": "sophelibrary",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "dependencies": {
     "body-parser": "^1.17.1",
     "express": "^4.15.2",
