@@ -1,6 +1,6 @@
 {
-  "name": "sophelibrary",
-  "version": "0.2.0",
+  "name": "phema-library",
+  "version": "0.2.1",
   "dependencies": {
     "asn1": "^0.2.4",
     "body-parser": "^1.18.3",
